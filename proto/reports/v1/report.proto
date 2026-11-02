@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package tender.reports.v1;
+
+import "common/v1/common.proto";
+
+// ============================================================================
+// Report Worker contract.
+// Stream: `jobs:reports` (consumer group `report-workers`)
+// ============================================================================
+
+message GenerateReportJob {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string tender_id = 2;
+  string run_id = 3;                // search_run whose results are reported
+  repeated string formats = 4;      // "xlsx" | "pdf" | "docx" (default: all)
+}
+
+message GeneratedFile {
+  string format = 1;                // "xlsx" | "pdf" | "docx"
+  string storage_key = 2;
+  int64 size_bytes = 3;
+  string sha256 = 4;
+}
+
+message GenerateReportResult {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string tender_id = 2;
+  string run_id = 3;
+  repeated GeneratedFile files = 4;
+  tender.common.v1.ErrorDetail error = 5;
+}
+
+message ReportReadyNotice {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string tender_id = 2;
+  string run_id = 3;
+  int32 files_created = 4;
+  bool success = 5;
+  string error_message = 6;
+}

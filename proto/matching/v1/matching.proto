@@ -1,0 +1,152 @@
+syntax = "proto3";
+
+package tender.matching.v1;
+
+import "common/v1/common.proto";
+
+// ============================================================================
+// Matching Engine contract (technical matcher + ranking in v1).
+// gRPC service called synchronously by the Orchestrator:
+//   MATCHING stage -> MatchComponent
+//   RANKING  stage -> RankOffers
+// ============================================================================
+
+service MatchingService {
+  rpc MatchComponent(MatchComponentRequest) returns (MatchComponentResponse);
+  rpc RankOffers(RankOffersRequest) returns (RankOffersResponse);
+  rpc Health(tender.common.v1.HealthRequest) returns (tender.common.v1.HealthResponse);
+}
+
+// Requirement data types.
+// STRING | NUMBER | RANGE | BOOLEAN | ENUM | STANDARD | MATERIAL | MODEL | DIMENSION
+// (stored as string on the wire for forward compatibility; validated by the
+// matching engine, unknown types degrade to STRING comparison).
+
+message Requirement {
+  string id = 1;
+  string name = 2;
+  string value_text = 3;            // canonical textual value
+  double value_num = 4;             // numeric value when applicable
+  string unit = 5;                  // unit as written in the tender
+  string data_type = 6;
+  bool mandatory = 7;
+  double range_min = 8;             // RANGE: lower bound
+  double range_max = 9;             // RANGE: upper bound
+  double tolerance = 10;            // allowed deviation, fraction (0.05 = 5%)
+  repeated string allowed_values = 11; // ENUM: acceptable values
+  string source = 12;               // document/manual
+  double confidence = 13;           // 0..1 extraction confidence
+}
+
+message SpecValue {
+  string id = 1;
+  string name = 2;
+  string value_text = 3;
+  double value_num = 4;
+  string unit = 5;
+  string data_type = 6;
+  string source_id = 7;             // provenance: sources.id
+  string source_snippet = 8;        // verbatim quote proving the value
+  double confidence = 9;
+}
+
+message ProductCandidate {
+  string product_id = 1;
+  repeated SpecValue specs = 2;
+}
+
+message MatchComponentRequest {
+  string component_id = 1;
+  repeated Requirement requirements = 2;
+  repeated ProductCandidate products = 3;
+}
+
+// FULL: every evaluated requirement matches (mandatory included).
+// TOLERANCE: numeric values deviate within configured tolerance.
+// PARTIAL: non-mandatory mismatches exist, mandatory all satisfied.
+// MISMATCH: at least one mandatory requirement fails -> not eligible.
+// INSUFFICIENT: mandatory requirement has no data -> not eligible.
+enum MatchVerdict {
+  MATCH_VERDICT_UNSPECIFIED = 0;
+  MATCH_VERDICT_FULL = 1;
+  MATCH_VERDICT_TOLERANCE = 2;
+  MATCH_VERDICT_PARTIAL = 3;
+  MATCH_VERDICT_MISMATCH = 4;
+  MATCH_VERDICT_INSUFFICIENT = 5;
+}
+
+// status: "match" | "tolerance" | "partial" | "mismatch" | "missing"
+message RequirementCheck {
+  string requirement_id = 1;
+  string requirement_name = 2;
+  string status = 3;
+  string expected = 4;
+  string actual = 5;
+  string unit = 6;
+  string explanation = 7;           // human-readable reason for non-matches
+}
+
+message MatchResult {
+  string component_id = 1;
+  string product_id = 2;
+  MatchVerdict verdict = 3;
+  bool eligible = 4;                // may enter ranking
+  double technical_score = 5;       // 0..1
+  repeated RequirementCheck checks = 6;
+  repeated string missing_specs = 7; // requirement names with no product data
+}
+
+message MatchComponentResponse {
+  repeated MatchResult matches = 1;
+}
+
+// ----------------------------------------------------------------------------
+// Ranking
+// ----------------------------------------------------------------------------
+
+message RankingWeights {
+  double technical_fit = 1;         // default 0.40
+  double price = 2;                 // default 0.25
+  double delivery = 3;              // default 0.20
+  double supplier_reliability = 4;  // default 0.10
+  double data_freshness = 5;        // default 0.05
+}
+
+message RankedInput {
+  string product_id = 1;
+  MatchResult match = 2;
+  bool has_price = 3;
+  double price = 4;
+  string currency = 5;
+  bool has_lead_time = 6;
+  int32 lead_time_days = 7;
+  bool has_supplier_reliability = 8;
+  double supplier_reliability = 9;  // 0..1
+  int32 data_age_days = 10;         // since sources.retrieved_at
+}
+
+message RankOffersRequest {
+  string component_id = 1;
+  repeated RankedInput offers = 2;  // only eligible matches are accepted
+  RankingWeights weights = 3;       // zero-filled = use configured defaults
+}
+
+// One factor of the explainable score.
+message ScoreComponent {
+  string factor = 1;                // "technical_fit" | "price" | ...
+  double weight = 2;
+  double normalized = 3;            // 0..1 after normalization
+  double weighted = 4;              // weight * normalized
+  string note = 5;                  // e.g. "price unknown — scored at floor"
+}
+
+message RankedOffer {
+  string product_id = 1;
+  double total_score = 2;           // 0..1
+  repeated ScoreComponent breakdown = 3;
+  string summary = 4;               // short human-readable explanation
+}
+
+message RankOffersResponse {
+  repeated RankedOffer offers = 1;  // sorted by total_score DESC
+}

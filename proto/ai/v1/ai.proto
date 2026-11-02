@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package tender.ai.v1;
+
+import "common/v1/common.proto";
+
+// ============================================================================
+// AI Worker contract.
+//
+// The worker is a Redis Streams consumer (no gRPC server in v1):
+//   - `jobs:ai.requirements` -> ExtractRequirementsJob
+//   - `jobs:ai.products`     -> ExtractProductsJob
+// Results are persisted to PostgreSQL by the worker; only notices are
+// published back (`events:ai`). LLM responses themselves are validated
+// with Pydantic models mirroring these messages.
+// ============================================================================
+
+message ExtractRequirementsJob {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string document_id = 2;
+  // Pages/content are loaded from PostgreSQL (document_pages) by document_id.
+  bool escalate = 3;                // use the stronger fallback model
+}
+
+message ExtractRequirementsResult {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string document_id = 2;
+  int32 components_created = 3;
+  int32 requirements_created = 4;
+  bool escalated = 5;               // fallback model was used
+  tender.common.v1.ErrorDetail error = 6;
+}
+
+message RequirementsExtractedNotice {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string document_id = 2;
+  int32 components_created = 3;
+  int32 requirements_created = 4;
+  bool success = 5;
+  string error_message = 6;
+}
+
+message ExtractProductsJob {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string component_id = 2;
+  // Fetched page contents (sources) for this run are loaded from PostgreSQL.
+  bool escalate = 3;
+}
+
+// One specification extracted from a product page. Every value carries the
+// source it came from — unverified data must never look confirmed.
+message ExtractedSpec {
+  string name = 1;
+  string value_text = 2;
+  double value_num = 3;
+  string unit = 4;
+  string data_type = 5;             // STRING|NUMBER|RANGE|BOOLEAN|ENUM|STANDARD|MATERIAL|MODEL|DIMENSION
+  string source_id = 6;             // provenance: sources.id
+  string source_snippet = 7;        // verbatim quote from the page
+  double confidence = 8;            // 0..1
+}
+
+message ExtractedProduct {
+  string name = 1;
+  string manufacturer = 2;
+  string model = 3;
+  string supplier_name = 4;
+  string supplier_url = 5;
+  double price = 6;
+  string currency = 7;
+  int32 lead_time_days = 8;
+  string canonical_url = 9;
+  string source_id = 10;
+  repeated ExtractedSpec specs = 11;
+  double confidence = 12;
+}
+
+message ExtractProductsResult {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string component_id = 2;
+  int32 products_created = 3;
+  int32 specs_created = 4;
+  bool escalated = 5;
+  tender.common.v1.ErrorDetail error = 6;
+}
+
+message ProductsExtractedNotice {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string component_id = 2;
+  int32 products_created = 3;
+  bool success = 4;
+  string error_message = 5;
+}

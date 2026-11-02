@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package tender.common.v1;
+
+// ============================================================================
+// Shared contract types used by every service.
+// Source of truth for all inter-service communication (gRPC + Redis Streams).
+// ============================================================================
+
+// Envelope attached to every job pushed to a Redis Stream.
+// task_id is the idempotency key: workers must process each task_id at most
+// once (deduplicated via PostgreSQL unique constraints + Redis SET NX).
+message JobEnvelope {
+  string task_id = 1;              // UUIDv4, unique per logical task
+  string tender_id = 2;
+  string run_id = 3;               // search_run id, empty during document stage
+  int64 created_at_unix_ms = 4;
+  int32 attempt = 5;               // delivery attempt (1-based)
+  map<string, string> metadata = 6; // trace_id, request_id, etc. (no secrets)
+}
+
+// Structured, machine-readable error.
+message ErrorDetail {
+  string code = 1;                 // stable machine code, e.g. "LLM_TIMEOUT"
+  string message = 2;              // human-readable, never contains secrets
+  map<string, string> context = 3;
+}
+
+message PageRequest {
+  int32 page = 1;                  // 1-based
+  int32 page_size = 2;
+}
+
+message PageResponse {
+  int32 page = 1;
+  int32 page_size = 2;
+  int64 total = 3;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  bool ok = 1;
+  string detail = 2;               // e.g. "keenable reachable, redis ok"
+}
+
+// Provenance of a piece of data.
+enum DataOrigin {
+  DATA_ORIGIN_UNSPECIFIED = 0;
+  DATA_ORIGIN_DOCUMENT = 1;        // extracted from uploaded tender document
+  DATA_ORIGIN_MANUAL = 2;          // entered/edited by the operator
+  DATA_ORIGIN_WEB = 3;             // extracted from a fetched web page
+}
+
+// Real-time progress event, published to the `events:progress` Redis channel
+// and forwarded to browser clients as JSON over WebSocket.
+message ProgressEvent {
+  string event_id = 1;             // UUIDv4
+  string event_type = 2;           // e.g. "search.progress", "task.failed"
+  string tender_id = 3;
+  string task_id = 4;
+  string run_id = 5;
+  int64 timestamp_unix_ms = 6;
+  string stage = 7;                // tender FSM stage, e.g. "SEARCHING"
+  double progress = 8;             // 0.0 .. 1.0 for the current stage
+  string message = 9;              // short human-readable text (no secrets)
+  string level = 10;               // "info" | "success" | "warning" | "error"
+  map<string, string> metadata = 11;
+}

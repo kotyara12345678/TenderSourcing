@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package tender.search.v1;
+
+import "common/v1/common.proto";
+
+// ============================================================================
+// Search Engine contract (Keenable: https://keenable.ai, docs.keenable.ai).
+//
+// gRPC service: synchronous calls from the Orchestrator (single-position
+// interactive search, health aggregation).
+// Stream: `jobs:search` (consumer group `search-workers`) for run processing.
+// ============================================================================
+
+service SearchService {
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc Fetch(FetchRequest) returns (FetchResponse);
+  rpc Health(tender.common.v1.HealthRequest) returns (tender.common.v1.HealthResponse);
+}
+
+// POST {KEENABLE_BASE_URL}/v1/search  (X-API-Key header)
+message SearchRequest {
+  string query = 1;                 // required
+  string mode = 2;                  // "pro" (default) | "realtime"
+  string site = 3;                  // optional site filter, e.g. "example.com"
+  string published_after = 4;       // RFC3339 date / ISO8601 / "<n><unit>"
+  string published_before = 5;
+  int32 snippet_max_length = 6;     // 180..10000
+  int32 max_results = 7;            // 1..50 (default 10)
+}
+
+message SearchResult {
+  string title = 1;
+  string url = 2;
+  string snippet = 3;               // description is deprecated upstream
+  string published_at = 4;          // ISO8601 UTC, optional upstream
+  string acquired_at = 5;           // ISO8601 UTC, optional upstream
+}
+
+// Per-call billing info, present only on keyed responses (optional).
+message Usage {
+  string sku = 1;                   // "search.pro" | "search.realtime" | "fetch" | "fetch.live"
+  int64 credits = 2;
+  bool paid = 3;
+}
+
+message SearchResponse {
+  string query = 1;
+  string mode = 2;
+  repeated SearchResult results = 3;
+  Usage usage = 4;
+}
+
+// GET {KEENABLE_BASE_URL}/v1/fetch?url=... (X-API-Key header)
+message FetchRequest {
+  string url = 1;
+  bool live = 2;                    // true = fetch live instead of indexed copy
+  int32 max_chars = 3;              // content truncation limit
+  string prompt = 4;                // optional LLM extraction instruction (<=2000 chars)
+}
+
+message FetchResponse {
+  string url = 1;
+  string title = 2;
+  string author = 3;
+  string content = 4;               // markdown
+  int64 published_at_unix = 5;      // unix seconds, 0 when unknown
+  Usage usage = 6;
+}
+
+// ----------------------------------------------------------------------------
+// Stream job: search + prefilter + fetch for ONE tender position.
+// The engine loads the component and its requirements from PostgreSQL,
+// builds queries itself (deterministic generator + stored search hints),
+// persists search_queries / search_results / sources, then publishes a notice.
+// ----------------------------------------------------------------------------
+message SearchPositionJob {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string component_id = 2;
+}
+
+message SearchPositionResult {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string component_id = 2;
+  int32 queries_issued = 3;
+  int32 results_found = 4;          // after dedup
+  int32 pages_fetched = 5;
+  int64 search_credits = 6;         // usage reported by provider
+  int64 fetch_credits = 7;
+  bool success = 8;
+  string error_message = 9;
+}

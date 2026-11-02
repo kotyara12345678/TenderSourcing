@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package tender.documents.v1;
+
+import "common/v1/common.proto";
+
+// ============================================================================
+// Document Worker contract.
+// Stream: `jobs:documents` (consumer group `doc-workers`)
+// ============================================================================
+
+message ExtractDocumentJob {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string document_id = 2;
+  string storage_key = 3;          // key inside object storage
+  string original_filename = 4;
+  string mime_type = 5;            // declared MIME, verified against content
+  int64 size_bytes = 6;
+  string sha256 = 7;
+  bool run_ocr = 8;                // OCR pages that have no extractable text
+}
+
+message BoundingBox {
+  double x = 1;                    // normalized 0..1 (page-relative)
+  double y = 2;
+  double width = 3;
+  double height = 4;
+}
+
+message TableRow {
+  repeated string cells = 1;
+}
+
+message Table {
+  int32 index = 1;                 // order of appearance on the page
+  repeated TableRow rows = 2;
+}
+
+message TextBlock {
+  string text = 1;
+  tender.common.v1.BoundingBox bbox = 2;
+  double confidence = 3;           // 1.0 for native text, <1.0 for OCR
+  string kind = 4;                 // "text" | "heading" | "list_item" | "ocr"
+}
+
+message ExtractedPage {
+  int32 page_number = 1;           // 1-based
+  string content_type = 2;         // "text" | "table" | "image" | "mixed"
+  string text = 3;                 // plain text in reading order
+  repeated Table tables = 4;
+  repeated TextBlock blocks = 5;
+  bool ocr_used = 6;
+}
+
+// Full extraction result. The worker persists `pages` into PostgreSQL
+// (document_pages) and publishes only the small notice below to Redis.
+message ExtractDocumentResult {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string document_id = 2;
+  int32 page_count = 3;
+  int64 total_chars = 4;
+  bool ocr_used = 5;
+  repeated ExtractedPage pages = 6;
+  map<string, string> metadata = 7; // parser name, versions, timings
+  tender.common.v1.ErrorDetail error = 8; // set on failure/partial failure
+}
+
+// Small notification published to `events:documents` after persistence.
+message DocumentExtractedNotice {
+  tender.common.v1.JobEnvelope envelope = 1;
+  string document_id = 2;
+  int32 page_count = 3;
+  int64 total_chars = 4;
+  bool ocr_used = 5;
+  bool success = 6;
+  string error_message = 7;        // empty when success = true
+}

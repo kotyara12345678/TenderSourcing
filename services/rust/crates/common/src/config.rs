@@ -148,7 +148,7 @@ fn required_min(key: &str, min_chars: usize, errors: &mut Vec<String>) -> String
 fn parse<T>(key: &str, default: &str, errors: &mut Vec<String>) -> T
 where
     T: std::str::FromStr,
-    T::Err: std::fmt::Display,
+    T::Err: std::fmt::Display + std::fmt::Debug,
 {
     let value = with_default(key, default);
     match value.parse::<T>() {

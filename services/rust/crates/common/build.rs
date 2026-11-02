@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proto_root = std::path::Path::new(&manifest_dir).join("../../../../proto");
     let proto_file = proto_root.join("common/v1/common.proto");
 
-    tonic_prost_build::configure().compile_protos([&proto_file], [&proto_root])?;
+    tonic_prost_build::configure().compile_protos(&[&proto_file], &[&proto_root])?;
 
     println!("cargo:rerun-if-changed={}", proto_file.display());
     Ok(())

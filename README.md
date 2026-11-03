@@ -8,8 +8,10 @@ product pages → extracts product specifications → performs *programmatic*
 technical matching → ranks eligible offers → produces an Excel/PDF/DOCX
 sourcing report ready for a procurement specialist.
 
-> Status: under active development. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-> for the target architecture and implementation plan.
+> Status: full implementation (all services, workers, SPA, deployment and docs).
+> CI validates formatting, clippy, unit tests, protobuf generation, Python
+> imports, strict TypeScript and the SQL migrations. Known v1 limitations are
+> listed in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Stack
 
@@ -45,8 +47,10 @@ TenderSourcing/
 │       ├── document_worker/
 │       ├── ai_worker/
 │       └── report_worker/
-├── frontend/               # React SPA
-├── deploy/                 # docker-compose, nginx, deployment scripts
+│       └── frontend/       # React SPA (Vite + TS strict)
+├── deploy/                 # docker-compose, Dockerfiles, nginx
+│   ├── docker/
+│   └── nginx/
 ├── scripts/                # repo utilities (clean-artifacts.sh)
 ├── docs/                   # architecture & operation documentation
 └── .github/workflows/      # CI, Docker build, deploy
@@ -56,13 +60,13 @@ TenderSourcing/
 
 ```bash
 cp .env.example .env        # fill in secrets
-docker compose -f deploy/docker-compose.yml up -d
-# => http://localhost:8080
+docker compose -f deploy/docker-compose.yml up -d --build
+# => http://localhost:8088 (nginx serves the SPA and proxies /api)
 ```
 
-Heavy builds never run locally: all compilation, tests and image builds happen
-in GitHub Actions (see `.github/workflows/`). Local artifact cleanup is an
-explicit, controlled operation:
+Builds and tests run in GitHub Actions (`.github/workflows/ci.yml`); container
+images are built and pushed to GHCR by `.github/workflows/docker.yml`.
+Generated artifacts are never committed — cleanup is explicit and controlled:
 
 ```bash
 scripts/clean-artifacts.sh --dry-run   # show what would be removed

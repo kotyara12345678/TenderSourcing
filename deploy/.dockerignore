@@ -1,0 +1,18 @@
+# Keep build contexts small and secret-free. Keep this file in sync with
+# scripts/clean-artifacts.sh.
+.git
+.github
+**/node_modules
+**/dist
+**/target
+**/__pycache__
+**/*.pyc
+services/python/generated
+docs
+deploy/.dockerignore
+.env
+.env.*
+!.env.example
+*.log
+storage
+data

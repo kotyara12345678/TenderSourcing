@@ -1,0 +1,175 @@
+# Full TenderSourcing stack.
+#
+#   cp .env.example .env   # fill in APP_SECRET, AUTH_*, KEENABLE_API_KEY, LLM_*
+#   docker compose -f deploy/docker-compose.yml up -d --build
+#
+# The UI is served on http://localhost:${FRONTEND_PORT:-8088}.
+name: tendersourcing
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tendersourcing}
+      POSTGRES_USER: ${POSTGRES_USER:-tendersourcing}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tendersourcing} -d ${POSTGRES_DB:-tendersourcing}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.rust
+      args:
+        PACKAGE: tender-api
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - storage:/data/storage
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.rust
+      args:
+        PACKAGE: tender-orchestrator
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8090/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  search:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.rust
+      args:
+        PACKAGE: tender-search
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8090/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  matching:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.rust
+      args:
+        PACKAGE: tender-matching
+    restart: unless-stopped
+    env_file: ../.env
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8090/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  document-worker:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.worker
+      args:
+        SERVICE: document_worker
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - storage:/data/storage
+
+  ai-worker:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.worker
+      args:
+        SERVICE: ai_worker
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  report-worker:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.worker
+      args:
+        SERVICE: report_worker
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - storage:/data/storage
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.frontend
+      args:
+        VITE_API_BASE_URL: /api/v1
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${FRONTEND_PORT:-8088}:80"
+
+volumes:
+  pgdata:
+  redisdata:
+  storage:

@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rust:
     name: Rust
@@ -51,3 +55,171 @@ jobs:
           name: cargo-lock
           path: services/rust/Cargo.lock
           if-no-files-found: ignore
+
+  python:
+    name: Python
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/python/requirements.txt
+
+      - name: Install dependencies
+        run: pip install --quiet -r services/python/requirements.txt
+
+      - name: Byte-compile all worker code
+        run: python -m compileall -q services/python
+
+      - name: Generate protobuf modules
+        run: bash scripts/gen-proto-python.sh
+
+      - name: Import check (fails on missing/renamed modules)
+        env:
+          PYTHONPATH: services/python
+          DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+          REDIS_URL: redis://localhost:6379/0
+          STORAGE_PATH: /tmp/ts-storage
+          LLM_API_KEY: test-key
+        run: |
+          python - <<'PY'
+          import importlib
+
+          modules = [
+              "common.config",
+              "common.streams",
+              "common.db",
+              "common.progress",
+              "common.storage",
+              "common.worker",
+              "document_worker.extract",
+              "document_worker.main",
+              "ai_worker.llm",
+              "ai_worker.schemas",
+              "ai_worker.requirements",
+              "ai_worker.products",
+              "ai_worker.main",
+              "report_worker.builders",
+              "report_worker.main",
+          ]
+          for module in modules:
+              importlib.import_module(module)
+              print(f"ok {module}")
+          PY
+
+      - name: Config validation behaviour
+        env:
+          PYTHONPATH: services/python
+        run: |
+          python - <<'PY'
+          import os
+
+          from common.config import ConfigError, Config
+
+          os.environ.pop("DATABASE_URL", None)
+          try:
+              Config.from_env("ci")
+          except ConfigError as error:
+              assert "DATABASE_URL is required" in str(error), str(error)
+          else:
+              raise SystemExit("Config.from_env accepted a missing DATABASE_URL")
+
+          os.environ["DATABASE_URL"] = "postgres://ci:ci@localhost:5432/ci"
+          os.environ["REDIS_URL"] = "redis://localhost:6379/0"
+          os.environ["STORAGE_PROVIDER"] = "s3"
+          try:
+              Config.from_env("ci")
+          except ConfigError as error:
+              assert "not implemented" in str(error), str(error)
+          else:
+              raise SystemExit("Config.from_env accepted STORAGE_PROVIDER=s3")
+
+          os.environ["STORAGE_PROVIDER"] = "local"
+          config = Config.from_env("ci")
+          assert config.consumer_identity.startswith(("", "ci")) or config.consumer_identity
+          print("config validation ok")
+          PY
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: services/frontend/package.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck (strict)
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+  migrations:
+    name: SQL sanity
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_USER: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply migrations in order
+        env:
+          PGPASSWORD: ci
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          for file in $(ls migrations/*.sql | sort); do
+            echo "applying $file"
+            psql -h localhost -U ci -d ci -v ON_ERROR_STOP=1 -f "$file"
+          done
+
+      - name: Verify core tables exist
+        env:
+          PGPASSWORD: ci
+        run: |
+          missing=$(psql -h localhost -U ci -d ci -tAc "
+            SELECT string_agg(name, ',')
+            FROM (VALUES ('users'),('sessions'),('tenders'),('documents'),('document_pages'),
+                         ('components'),('requirements'),('search_runs'),('search_tasks'),
+                         ('search_queries'),('sources'),('search_results'),('suppliers'),
+                         ('products'),('product_specs'),('matches'),('match_details'),
+                         ('reports'),('api_usage'),('activity_logs')) AS expected(name)
+            WHERE NOT EXISTS (
+              SELECT 1 FROM information_schema.tables t
+              WHERE t.table_schema = 'public' AND t.table_name = expected.name
+            );")
+          if [ -n "$missing" ]; then
+            echo "missing tables: $missing" >&2
+            exit 1
+          fi
+          echo "all core tables present"

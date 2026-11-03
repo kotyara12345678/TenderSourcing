@@ -36,6 +36,9 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
+# --- Generated protobuf (never committed; see scripts/gen-proto-python.sh) ---
+services/python/generated/
+
 # --- Generated / temp build dirs ---
 build/
 tmp/
@@ -54,3 +57,6 @@ storage/
 
 # --- Docker ---
 *.swp
+
+# --- local tooling (protoc for local checks) ---
+.tools/

@@ -1,0 +1,28 @@
+# Build any Rust service from services/rust: pass PACKAGE=tender-api etc.
+# Build context is the repository root.
+FROM rust:slim AS builder
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends protobuf-compiler pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY services/rust ./services/rust
+COPY proto ./proto
+COPY migrations ./migrations
+
+ARG PACKAGE=tender-api
+RUN cargo build --release --manifest-path services/rust/Cargo.toml -p "${PACKAGE}"
+
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates tzdata \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --create-home --home /home/app app
+
+ARG PACKAGE=tender-api
+COPY --from=builder "/app/services/rust/target/release/${PACKAGE}" /usr/local/bin/service
+
+USER app
+ENTRYPOINT ["/usr/local/bin/service"]

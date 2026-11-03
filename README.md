@@ -60,7 +60,7 @@ TenderSourcing/
 
 ```bash
 cp .env.example .env        # fill in secrets
-docker compose -f deploy/docker-compose.yml up -d --build
+docker compose -f deploy/docker-compose.yml --env-file .env up -d --build
 # => http://localhost:8088 (nginx serves the SPA and proxies /api)
 ```
 

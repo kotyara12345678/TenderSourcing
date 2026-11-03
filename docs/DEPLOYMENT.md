@@ -11,8 +11,8 @@
 cp .env.example .env
 # required: APP_SECRET, AUTH_SECRET, AUTH_USERNAME, AUTH_PASSWORD,
 #           POSTGRES_PASSWORD, KEENABLE_API_KEY, LLM_API_KEY
-docker compose -f deploy/docker-compose.yml up -d --build
-docker compose -f deploy/docker-compose.yml ps
+docker compose -f deploy/docker-compose.yml --env-file .env up -d --build
+docker compose -f deploy/docker-compose.yml --env-file .env ps
 ```
 
 The UI is served by nginx on `http://localhost:${FRONTEND_PORT:-8088}`; nginx
@@ -54,8 +54,8 @@ next start and revokes all sessions (`password_fingerprint` comparison).
 
 ```bash
 git pull
-docker compose -f deploy/docker-compose.yml build
-docker compose -f deploy/docker-compose.yml up -d
+docker compose -f deploy/docker-compose.yml --env-file .env build
+docker compose -f deploy/docker-compose.yml --env-file .env up -d
 ```
 
 Migrations run automatically at API start; they are additive and idempotent.
@@ -65,7 +65,7 @@ in v1.
 ## Backups
 
 ```bash
-docker compose -f deploy/docker-compose.yml exec -T postgres \
+docker compose -f deploy/docker-compose.yml --env-file .env exec -T postgres \
   pg_dump -U tendersourcing tendersourcing | gzip > backup-$(date +%F).sql.gz
 ```
 

@@ -34,4 +34,22 @@ fi
 # Make every generated directory an importable package.
 find "$OUT_DIR" -type d -exec sh -c 'touch "$1/__init__.py"' _ {} \;
 
+# protoc emits imports relative to the include root (``from common.v1 import
+# common_pb2``), while workers import generated modules as ``generated.*``.
+# Rewrite the imports so both namespaces agree and descriptors are registered
+# exactly once.
+"$PYTHON_BIN" - "$OUT_DIR" <<'PY'
+import pathlib
+import re
+import sys
+
+out_dir = pathlib.Path(sys.argv[1])
+pattern = re.compile(r"^from ((?:[A-Za-z_][A-Za-z0-9_]*\.)+v[0-9]+) import ", re.MULTILINE)
+for path in out_dir.rglob("*_pb2*.py"):
+    text = path.read_text(encoding="utf-8")
+    rewritten = pattern.sub(r"from generated.\1 import ", text)
+    if rewritten != text:
+        path.write_text(rewritten, encoding="utf-8", newline="\n")
+PY
+
 echo "generated $(printf '%s\n' "${PROTOS[@]}" | wc -l) proto module(s) into $OUT_DIR"

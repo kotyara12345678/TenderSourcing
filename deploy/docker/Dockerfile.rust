@@ -19,7 +19,7 @@ FROM debian:bookworm-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates tzdata \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 10001 --create-home --home /home/app app
+    && useradd --system --uid 10001 --create-home --home /home/app app     && mkdir -p /data/storage     && chown -R app:app /data
 
 ARG PACKAGE=tender-api
 COPY --from=builder "/app/services/rust/target/release/${PACKAGE}" /usr/local/bin/service

@@ -21,9 +21,12 @@ COPY scripts/gen-proto-python.sh ./scripts/gen-proto-python.sh
 COPY services/python ./services/python
 RUN bash scripts/gen-proto-python.sh
 
-RUN useradd --system --uid 10002 --create-home --home /home/worker worker \
+# The storage volume is shared with the Rust services, so every image uses the
+# same UID and a group-writable data directory.
+RUN useradd --system --uid 10001 --create-home --home /home/worker worker \
     && mkdir -p /data/storage \
-    && chown -R worker:worker /data
+    && chown -R worker:worker /data \
+    && chmod -R 0775 /data/storage
 USER worker
 
 ARG SERVICE=document_worker

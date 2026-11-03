@@ -22,6 +22,8 @@ pub mod jobs {
     pub const DOCUMENTS: &str = "jobs:documents";
     pub const AI_REQUIREMENTS: &str = "jobs:ai.requirements";
     pub const AI_PRODUCTS: &str = "jobs:ai.products";
+    /// Free-form intake ("нужно 200 м кабеля ...") -> structured positions.
+    pub const AI_INTAKE: &str = "jobs:ai.intake";
     pub const SEARCH: &str = "jobs:search";
     pub const REPORTS: &str = "jobs:reports";
     /// Control messages from the API to the orchestrator: a `JobEnvelope`

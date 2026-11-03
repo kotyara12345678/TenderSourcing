@@ -62,15 +62,22 @@ export default function TendersPage(): JSX.Element {
   };
 
   const items = tendersQuery.data?.items ?? [];
+  const total = tendersQuery.data?.total ?? 0;
 
   return (
-    <div className="space-y-6">
-      <section className="card p-6">
-        <h2 className="text-base font-semibold text-slate-900">Новый тендер</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Загрузите документацию — позиции и требования извлекаются автоматически.
-        </p>
-        <form className="mt-4 grid gap-3 md:grid-cols-[2fr_3fr_auto]" onSubmit={onSubmit}>
+    <div className="space-y-7">
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Тендеры</h1>
+          <p className="page-subtitle">
+            Загрузите документацию — позиции и требования извлекаются автоматически.
+          </p>
+        </div>
+        <span className="text-[12px] tabular-nums text-zinc-400">всего: {total}</span>
+      </div>
+
+      <form className="panel" onSubmit={onSubmit}>
+        <div className="panel-body grid gap-2 sm:grid-cols-[1fr_1.4fr_auto]">
           <input
             className="input"
             placeholder="Название тендера"
@@ -88,81 +95,92 @@ export default function TendersPage(): JSX.Element {
           <button type="submit" className="btn-primary" disabled={createMutation.isPending}>
             {createMutation.isPending ? "Создание…" : "Создать"}
           </button>
-        </form>
-        {formError ? <p className="mt-2 text-sm text-red-600">{formError}</p> : null}
-      </section>
+        </div>
+        {formError ? (
+          <p className="border-t border-zinc-200 px-4 py-2 text-[12px] text-red-700">{formError}</p>
+        ) : null}
+      </form>
 
-      <section className="card">
-        <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-4">
-          <input
-            className="input max-w-xs"
-            placeholder="Поиск по названию"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <select
-            className="input max-w-[220px]"
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-          >
-            <option value="">Все статусы</option>
-            {STATUSES.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-          <span className="ml-auto text-sm text-slate-500">
-            Всего: {tendersQuery.data?.total ?? 0}
-          </span>
+      <div className="panel">
+        <div className="panel-head">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              className="input input-sm w-56"
+              placeholder="Поиск по названию"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <select
+              className="select input-sm w-48"
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            >
+              <option value="">Все статусы</option>
+              {STATUSES.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+            {status || query ? (
+              <button
+                type="button"
+                className="btn-ghost btn-sm"
+                onClick={() => {
+                  setStatus("");
+                  setQuery("");
+                }}
+              >
+                Сбросить
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {tendersQuery.isPending ? (
-          <p className="p-6 text-sm text-slate-500">Загрузка…</p>
+          <p className="empty">Загрузка…</p>
         ) : tendersQuery.isError ? (
-          <p className="p-6 text-sm text-red-600">{tendersQuery.error.message}</p>
+          <p className="empty text-red-700">{tendersQuery.error.message}</p>
         ) : items.length === 0 ? (
-          <p className="p-6 text-sm text-slate-500">Тендеров пока нет.</p>
+          <p className="empty">Тендеров пока нет — создайте первый выше.</p>
         ) : (
           <table className="table">
             <thead>
               <tr>
+                <th className="w-8">№</th>
                 <th>Тендер</th>
-                <th>Статус</th>
-                <th>Позиций</th>
-                <th>Создан</th>
-                <th />
+                <th className="w-44">Статус</th>
+                <th className="w-20 text-right">Позиций</th>
+                <th className="w-40">Создан</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((tender) => (
-                <tr key={tender.id}>
+              {items.map((tender, index) => (
+                <tr key={tender.id} className="group">
+                  <td className="text-[12px] tabular-nums text-zinc-400">{index + 1}</td>
                   <td>
-                    <Link className="font-medium" to={`/tenders/${tender.id}`}>
+                    <Link className="font-medium no-underline hover:underline" to={`/tenders/${tender.id}`}>
                       {tender.name}
                     </Link>
                     {tender.description ? (
-                      <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">{tender.description}</p>
+                      <p className="mt-0.5 line-clamp-1 text-[12px] text-zinc-500">
+                        {tender.description}
+                      </p>
                     ) : null}
                   </td>
                   <td>
                     <StatusBadge status={tender.status} />
                   </td>
-                  <td>{tender.components_count}</td>
-                  <td className="whitespace-nowrap text-slate-500">
+                  <td className="num text-right">{tender.components_count}</td>
+                  <td className="whitespace-nowrap text-[12px] text-zinc-500">
                     {formatDateTime(tender.created_at)}
-                  </td>
-                  <td className="text-right">
-                    <Link className="btn-secondary" to={`/tenders/${tender.id}`}>
-                      Открыть
-                    </Link>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-      </section>
+      </div>
     </div>
   );
 }

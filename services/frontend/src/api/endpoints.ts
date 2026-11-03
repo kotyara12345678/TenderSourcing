@@ -1,11 +1,14 @@
 import { apiFetch } from "@/api/client";
 import type {
   ActivityView,
+  ApplyIntakeResponse,
+  ApplyPosition,
   ComponentInput,
   ComponentMatchBundle,
   ComponentResults,
   ComponentView,
   DocumentView,
+  IntakeView,
   LoginResponse,
   Page,
   ReportView,
@@ -180,4 +183,27 @@ export function recentActivity(limit = 100): Promise<ActivityView[]> {
 
 export function usageSummary(): Promise<UsageSummary> {
   return apiFetch<UsageSummary>("/usage/summary");
+}
+
+// ---- AI intake ----
+
+export function parseIntake(text: string): Promise<{ id: string }> {
+  return apiFetch<{ id: string }>("/assistant/parse", {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+}
+
+export function getIntake(id: string): Promise<IntakeView> {
+  return apiFetch<IntakeView>(`/assistant/${id}`);
+}
+
+export function applyIntake(
+  id: string,
+  input: { name: string; description: string; positions: ApplyPosition[] },
+): Promise<ApplyIntakeResponse> {
+  return apiFetch<ApplyIntakeResponse>(`/assistant/${id}/apply`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }

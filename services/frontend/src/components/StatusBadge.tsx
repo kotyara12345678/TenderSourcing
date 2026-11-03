@@ -14,7 +14,7 @@ const LABELS: Record<string, string> = {
   RANKING: "Ранжирование",
   REPORT_GENERATION: "Формирование отчёта",
   COMPLETED: "Завершён",
-  COMPLETED_WITH_ERRORS: "Завершён с ошибками",
+  COMPLETED_WITH_ERRORS: "Завершён с замечаниями",
   FAILED: "Ошибка",
   CANCELLED: "Отменён",
   // document / task statuses
@@ -26,7 +26,11 @@ const LABELS: Record<string, string> = {
   RUNNING: "Выполняется",
   PENDING: "Ожидает",
   READY: "Готов",
+  MATCHED: "Сопоставлено",
+  SEARCHED: "Найдено",
   SKIPPED: "Пропущен",
+  REVIEWED: "Проверено",
+  DRAFT: "Черновик",
   // match statuses
   FULL: "Полное соответствие",
   TOLERANCE: "В пределах допуска",
@@ -40,14 +44,7 @@ const LABELS: Record<string, string> = {
   missing: "Нет данных",
 };
 
-const TONES: Record<string, string> = {
-  Completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Running: "bg-brand-50 text-brand-700 border-brand-200",
-  Failed: "bg-red-50 text-red-700 border-red-200",
-  Neutral: "bg-slate-100 text-slate-700 border-slate-200",
-};
-
-const RUNNING = new Set([
+const BUSY = new Set([
   "UPLOADING",
   "DOCUMENT_PROCESSING",
   "REQUIREMENT_EXTRACTION",
@@ -64,37 +61,34 @@ const RUNNING = new Set([
   "PENDING",
 ]);
 
-const COMPLETED = new Set([
+const ERROR = new Set(["FAILED", "MISMATCH", "CANCELLED", "mismatch"]);
+
+const WARN = new Set(["INSUFFICIENT", "missing", "COMPLETED_WITH_ERRORS"]);
+
+const DONE = new Set([
   "COMPLETED",
   "COMPLETED_WITH_ERRORS",
   "EXTRACTED",
   "DONE",
   "READY",
   "FULL",
-  "TOLERANCE",
-  "PARTIAL",
   "match",
-  "tolerance",
-  "partial",
+  "MATCHED",
 ]);
 
-const FAILED = new Set(["FAILED", "MISMATCH", "INSUFFICIENT", "CANCELLED", "mismatch", "missing"]);
-
-function tone(status: string): string {
-  if (FAILED.has(status)) return TONES.Failed ?? "";
-  if (RUNNING.has(status)) return TONES.Running ?? "";
-  if (COMPLETED.has(status)) return TONES.Completed ?? "";
-  return TONES.Neutral ?? "";
+function dotClass(status: string): string {
+  if (ERROR.has(status)) return "status-dot status-dot-error";
+  if (WARN.has(status)) return "status-dot status-dot-warn";
+  if (BUSY.has(status)) return "status-dot status-dot-busy animate-pulse";
+  if (DONE.has(status)) return "status-dot status-dot-live";
+  return "status-dot";
 }
 
 export function StatusBadge({ status }: { status: string }): JSX.Element {
   const label = LABELS[status] ?? status;
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${tone(
-        status,
-      )}`}
-    >
+    <span className="status" title={status}>
+      <span className={dotClass(status)} aria-hidden="true" />
       {label}
     </span>
   );

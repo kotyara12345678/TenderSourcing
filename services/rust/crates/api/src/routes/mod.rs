@@ -10,6 +10,7 @@ use tower_http::trace::TraceLayer;
 use crate::state::AppState;
 
 pub mod activity;
+pub mod assistant;
 pub mod auth;
 pub mod components;
 pub mod documents;
@@ -127,6 +128,10 @@ pub fn router(state: AppState) -> Router {
         // ---- reports ----
         .route("/tenders/{id}/reports", get(reports::list))
         .route("/reports/{id}/download", get(reports::download))
+        // ---- AI intake ----
+        .route("/assistant/parse", post(assistant::parse))
+        .route("/assistant/{id}", get(assistant::get))
+        .route("/assistant/{id}/apply", post(assistant::apply))
         // ---- activity & usage ----
         .route("/tenders/{id}/activity", get(activity::tender_activity))
         .route("/activity", get(activity::recent))

@@ -15,6 +15,14 @@ import "common/v1/common.proto";
 // with Pydantic models mirroring these messages.
 // ============================================================================
 
+// Free-form purchasing request written in plain language ("нужно 200 м кабеля
+// ВВГнг 3х2,5 и 10 автоматов на 16 А"). The worker turns it into structured
+// positions; the API persists the validated JSON on `intake_requests.result`.
+message ParseIntakeJob {
+  string request_id = 1;            // intake_requests.id
+  string text = 2;                  // the operator's own words, verbatim
+}
+
 message ExtractRequirementsJob {
   tender.common.v1.JobEnvelope envelope = 1;
   string document_id = 2;

@@ -4,6 +4,8 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Kept for compatibility; the minimalist UI is ink-on-paper and does
+        // not rely on a brand hue for primary actions.
         brand: {
           50: "#eef4ff",
           100: "#dae6ff",
@@ -27,6 +29,14 @@ export default {
           "Helvetica Neue",
           "Arial",
           "sans-serif",
+        ],
+        mono: [
+          "ui-monospace",
+          "SFMono-Regular",
+          "JetBrains Mono",
+          "Menlo",
+          "Consolas",
+          "monospace",
         ],
       },
     },

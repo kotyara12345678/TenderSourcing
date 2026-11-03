@@ -46,6 +46,29 @@ Allowed uploads: `pdf`, `docx`, `xlsx`, `txt`, `rtf`, `odt`; magic bytes are
 checked for PDF (`%PDF`) and ZIP containers (`PK\x03\x04`); size limit
 `MAX_FILE_SIZE` (default 25 MiB).
 
+## AI intake (free-form request)
+
+The operator can skip the document entirely: a request written in plain
+language is turned into positions, quantities and the characteristics that were
+actually stated.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| POST | `/assistant/parse` | `{text}` (8…4000 chars) → `202 {id}`; queues `ParseIntakeJob` on `jobs:ai.intake` |
+| GET | `/assistant/{id}` | `{id, status, progress, steps[], result, error_message, tender_id}` |
+| POST | `/assistant/{id}/apply` | `{name, description, positions[]}` → `201 {tender_id, positions, requirements}` |
+
+The row is created before the job is queued, so the client polls one id from the
+first millisecond: `QUEUED → RUNNING → COMPLETED | FAILED`, then `APPLIED` once
+a tender exists. `steps` is the agent trace (four real stages: read, structure,
+validate, save) and `progress` is `0..1`.
+
+The model output is a proposal only: `apply` builds the tender from the body the
+operator confirmed, inside one transaction. Requirements whose value is not
+present in the request text are dropped before the result is stored — numbers
+are compared exactly as written, the same anti-hallucination rule the document
+extractor applies with verbatim snippets.
+
 ## Positions and requirements
 
 | Method | Path | Notes |

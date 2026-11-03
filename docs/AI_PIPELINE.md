@@ -5,6 +5,19 @@ Two Python consumers, both using an OpenAI-compatible chat endpoint
 validation and provenance checks. Temperature is 0 by default
 (`LLM_TEMPERATURE`) — extraction must be reproducible.
 
+## Free-form intake (`jobs:ai.intake`)
+
+The operator writes what they need ("нужно 200 м кабеля ВВГнг 3х2,5 на 660 В и
+10 автоматов на 16 А"); the prompt returns `tender_name`, `summary` and
+`positions[]` with `quantity`, `unit`, `category` and the characteristics stated
+in the text. Before the result is stored, every requirement is checked against
+the request: a numeric value is kept only when the same number appears in the
+text, a textual one only when its words do. The four UI steps (`read`,
+`structure`, `check`, `save`) are written to `intake_requests.steps` as they
+happen, together with `progress`, so the browser polls real work rather than a
+timer. Intake happens before a tender exists, so its usage is recorded with
+`tender_id = NULL`.
+
 ## Requirement extraction (`jobs:ai.requirements`)
 
 Input: `document_pages.content` for one document (pages joined with markers,

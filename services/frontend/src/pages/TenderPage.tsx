@@ -17,7 +17,7 @@ type TabKey = "documents" | "components" | "results" | "reports" | "activity";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "documents", label: "Документы" },
-  { key: "components", label: "Позиции и требования" },
+  { key: "components", label: "Позиции" },
   { key: "results", label: "Результаты" },
   { key: "reports", label: "Отчёты" },
   { key: "activity", label: "Журнал" },
@@ -42,7 +42,10 @@ export default function TenderPage(): JSX.Element {
   const tender = tenderQuery.data;
 
   const { connected } = useProgressSocket(tenderId ?? null, (message) => {
-    setFeed((current) => [message, ...current].slice(0, LIVE_FEED_LIMIT));
+    // "snapshot" is the state handshake sent on connect, not a feed entry.
+    if (message.type === "progress" && (message.stage || message.message)) {
+      setFeed((current) => [message, ...current].slice(0, LIVE_FEED_LIMIT));
+    }
     if (message.type === "progress") {
       void queryClient.invalidateQueries({ queryKey: ["tender", tenderId] });
       void queryClient.invalidateQueries({ queryKey: ["components", tenderId] });
@@ -77,43 +80,64 @@ export default function TenderPage(): JSX.Element {
   }, [tender]);
 
   if (!tenderId) {
-    return <p className="text-sm text-red-600">Некорректный адрес тендера.</p>;
+    return <p className="text-[13px] text-red-700">Некорректный адрес тендера.</p>;
   }
 
   if (tenderQuery.isPending) {
-    return <p className="text-sm text-slate-500">Загрузка тендера…</p>;
+    return <p className="text-[13px] text-zinc-500">Загрузка тендера…</p>;
   }
 
   if (tenderQuery.isError || !tender) {
-    return <p className="text-sm text-red-600">{tenderQuery.error?.message ?? "Тендер не найден"}</p>;
+    return (
+      <p className="text-[13px] text-red-700">{tenderQuery.error?.message ?? "Тендер не найден"}</p>
+    );
   }
 
   const canStartSearch = tender.status === "REQUIREMENTS_REVIEW";
+  const run = tender.latest_run;
+  const progress =
+    run && run.components_total > 0
+      ? Math.min(100, Math.round((run.components_done / run.components_total) * 100))
+      : 0;
+
+  const counts: Record<TabKey, number | null> = {
+    documents: tender.documents_count,
+    components: tender.components_count,
+    results: null,
+    reports: tender.reports_count,
+    activity: null,
+  };
 
   return (
     <div className="space-y-6">
-      <section className="card p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <Link to="/tenders" className="text-xs text-slate-500">
-              ← Все тендеры
-            </Link>
-            <h1 className="mt-1 text-xl font-semibold text-slate-900">{tender.name}</h1>
+      <div>
+        <Link to="/tenders" className="text-[12px] text-zinc-500 no-underline hover:text-zinc-900">
+          ← Тендеры
+        </Link>
+
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="page-title">{tender.name}</h1>
             {tender.description ? (
-              <p className="mt-1 max-w-3xl text-sm text-slate-600">{tender.description}</p>
+              <p className="mt-1 max-w-3xl text-[13px] text-zinc-500">{tender.description}</p>
             ) : null}
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-zinc-500">
               <StatusBadge status={tender.status} />
-              <span>Позиций: {tender.components_count}</span>
-              <span>Документов: {tender.documents_count}</span>
-              <span>Отчётов: {tender.reports_count}</span>
-              <span>Обновлён: {formatDateTime(tender.updated_at)}</span>
-              <span className={connected ? "text-emerald-600" : "text-slate-400"}>
-                {connected ? "● живое обновление" : "○ офлайн"}
+              <span className="tabular-nums">позиций: {tender.components_count}</span>
+              <span className="tabular-nums">документов: {tender.documents_count}</span>
+              <span className="tabular-nums">отчётов: {tender.reports_count}</span>
+              <span>обновлён {formatDateTime(tender.updated_at)}</span>
+              <span className="flex items-center gap-1.5">
+                <span
+                  className={`status-dot ${connected ? "status-dot-live" : ""}`}
+                  aria-hidden="true"
+                />
+                {connected ? "живое обновление" : "без сокета"}
               </span>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+
+          <div className="flex items-center gap-2">
             <button
               type="button"
               className="btn-primary"
@@ -121,7 +145,7 @@ export default function TenderPage(): JSX.Element {
               title={
                 canStartSearch
                   ? "Запустить поиск по всем позициям"
-                  : "Поиск можно запустить после проверки требований"
+                  : "Поиск запускается после проверки требований"
               }
               onClick={() => startMutation.mutate()}
             >
@@ -137,80 +161,82 @@ export default function TenderPage(): JSX.Element {
             </button>
           </div>
         </div>
+      </div>
 
-        {tender.error_message ? (
-          <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-            {tender.error_message}
-          </p>
-        ) : null}
-        {actionError ? (
-          <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{actionError}</p>
-        ) : null}
+      {tender.error_message ? <p className="banner-error">{tender.error_message}</p> : null}
+      {actionError ? <p className="banner-warn">{actionError}</p> : null}
 
-        {tender.latest_run ? (
-          <dl className="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-600 sm:grid-cols-3 lg:grid-cols-6">
-            <div>
-              <dt className="text-slate-400">Запуск</dt>
-              <dd>
-                <StatusBadge status={tender.latest_run.status} />
-              </dd>
+      {run ? (
+        <div className="panel">
+          <div className="panel-body space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="section-title">Текущий запуск</span>
+              <StatusBadge status={run.status} />
             </div>
-            <div>
-              <dt className="text-slate-400">Позиции</dt>
-              <dd>
-                {tender.latest_run.components_done}/{tender.latest_run.components_total}
-                {tender.latest_run.components_failed > 0
-                  ? ` (ошибок: ${tender.latest_run.components_failed})`
-                  : ""}
-              </dd>
+            <div className="progress">
+              <div className="progress-bar" style={{ width: `${progress}%` }} />
             </div>
-            <div>
-              <dt className="text-slate-400">Запросов</dt>
-              <dd>{tender.latest_run.queries_issued}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-400">Найдено</dt>
-              <dd>{tender.latest_run.results_found}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-400">Страниц</dt>
-              <dd>{tender.latest_run.pages_fetched}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-400">Начат</dt>
-              <dd>{formatDateTime(tender.latest_run.started_at)}</dd>
-            </div>
-          </dl>
-        ) : null}
-
-        {feed.length > 0 ? (
-          <div className="mt-4 max-h-40 space-y-1 overflow-y-auto rounded-lg bg-slate-50 p-3 font-mono text-xs text-slate-600">
-            {feed.map((message, index) => (
-              <p key={`${message.event_type ?? message.type}-${index}`}>
-                <span className="text-slate-400">{message.stage ?? message.type}</span>{" "}
-                {message.message ?? ""}
-              </p>
-            ))}
+            <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+              <div className="kv">
+                <dt>Позиции</dt>
+                <dd>
+                  {run.components_done}/{run.components_total}
+                  {run.components_failed > 0 ? (
+                    <span className="ml-1 text-red-700">· {run.components_failed} с ошибкой</span>
+                  ) : null}
+                </dd>
+              </div>
+              <div className="kv">
+                <dt>Запросов</dt>
+                <dd>{run.queries_issued}</dd>
+              </div>
+              <div className="kv">
+                <dt>Найдено</dt>
+                <dd>{run.results_found}</dd>
+              </div>
+              <div className="kv">
+                <dt>Страниц</dt>
+                <dd>{run.pages_fetched}</dd>
+              </div>
+              <div className="kv">
+                <dt>Начат</dt>
+                <dd>{formatDateTime(run.started_at)}</dd>
+              </div>
+              <div className="kv">
+                <dt>Завершён</dt>
+                <dd>{formatDateTime(run.finished_at)}</dd>
+              </div>
+            </dl>
           </div>
-        ) : null}
-      </section>
+        </div>
+      ) : null}
 
-      <nav className="flex flex-wrap gap-1">
+      {feed.length > 0 ? (
+        <div className="feed panel px-4 py-3">
+          {feed.map((message, index) => (
+            <p key={`${message.event_type ?? message.type}-${index}`}>
+              <span className="text-zinc-400">{message.stage ?? message.type}</span>{" "}
+              {message.message ?? ""}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="tabs">
         {TABS.map((item) => (
           <button
             key={item.key}
             type="button"
             onClick={() => setTab(item.key)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-              tab === item.key
-                ? "bg-white text-brand-700 shadow-sm ring-1 ring-slate-200"
-                : "text-slate-600 hover:bg-white/70"
-            }`}
+            className={`tab ${tab === item.key ? "tab-active" : ""}`}
           >
             {item.label}
+            {counts[item.key] !== null ? (
+              <span className="tab-count">{counts[item.key]}</span>
+            ) : null}
           </button>
         ))}
-      </nav>
+      </div>
 
       <section>
         {tab === "documents" ? <DocumentsTab tenderId={tenderId} /> : null}

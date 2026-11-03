@@ -25,4 +25,9 @@ pub mod tender {
             tonic::include_proto!("tender.documents.v1");
         }
     }
+    pub mod ai {
+        pub mod v1 {
+            tonic::include_proto!("tender.ai.v1");
+        }
+    }
 }

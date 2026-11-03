@@ -98,6 +98,60 @@ class RequirementsExtraction(BaseModel):
     components: list[ComponentOut] = Field(default_factory=list)
 
 
+class IntakeRequirement(BaseModel):
+    """One characteristic stated in a free-form request."""
+
+    name: str = Field(min_length=1, max_length=500)
+    value_text: str = ""
+    value_num: float | None = None
+    unit: str = ""
+    data_type: str = "STRING"
+    mandatory: bool = False
+
+    @field_validator("data_type")
+    @classmethod
+    def _data_type(cls, value: str) -> str:
+        normalized = (value or "STRING").strip().upper()
+        return normalized if normalized in DATA_TYPES else "STRING"
+
+
+class IntakePosition(BaseModel):
+    name: str = Field(min_length=1, max_length=500)
+    quantity: float = 1.0
+    unit: str = "шт"
+    category: str = ""
+    requirements: list[IntakeRequirement] = Field(default_factory=list)
+
+    @field_validator("quantity")
+    @classmethod
+    def _quantity(cls, value: float) -> float:
+        quantity = float(value)
+        return round(quantity, 3) if quantity > 0 else 1.0
+
+    @field_validator("unit")
+    @classmethod
+    def _unit(cls, value: str) -> str:
+        return (value or "шт").strip()[:32] or "шт"
+
+    @field_validator("category")
+    @classmethod
+    def _category(cls, value: str) -> str:
+        return (value or "").strip()[:200]
+
+
+class IntakeResult(BaseModel):
+    """Validated output of the free-form intake prompt."""
+
+    tender_name: str = ""
+    summary: str = ""
+    positions: list[IntakePosition] = Field(default_factory=list)
+
+    @field_validator("tender_name", "summary")
+    @classmethod
+    def _short_text(cls, value: str) -> str:
+        return (value or "").strip()[:400]
+
+
 class SpecOut(BaseModel):
     name: str = Field(min_length=1, max_length=500)
     value_text: str = ""

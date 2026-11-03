@@ -247,3 +247,63 @@ export interface StartSearchResponse {
   run_id: string;
   positions: number;
 }
+
+// ---- AI intake (free-form request -> positions) ----
+
+export type IntakeStatus = "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "APPLIED";
+
+export type IntakeStepStatus = "pending" | "running" | "done" | "error";
+
+export interface IntakeStep {
+  key: string;
+  title: string;
+  status: IntakeStepStatus;
+  detail: string;
+}
+
+export interface IntakeRequirement {
+  name: string;
+  value_text: string;
+  value_num: number | null;
+  unit: string;
+  data_type: string;
+  mandatory: boolean;
+}
+
+export interface IntakePosition {
+  name: string;
+  quantity: number;
+  unit: string;
+  category: string;
+  requirements: IntakeRequirement[];
+}
+
+export interface IntakeResult {
+  tender_name: string;
+  summary: string;
+  positions: IntakePosition[];
+}
+
+export interface IntakeView {
+  id: string;
+  status: IntakeStatus;
+  progress: number;
+  steps: IntakeStep[];
+  result: IntakeResult | null;
+  error_message: string | null;
+  tender_id: string | null;
+}
+
+export interface ApplyPosition {
+  name: string;
+  quantity: number;
+  unit: string;
+  category: string;
+  requirements: IntakeRequirement[];
+}
+
+export interface ApplyIntakeResponse {
+  tender_id: string;
+  positions: number;
+  requirements: number;
+}

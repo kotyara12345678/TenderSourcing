@@ -110,6 +110,7 @@ export default function ComponentsTab({ tenderId }: { tenderId: string }): JSX.E
 
   const components = componentsQuery.data ?? [];
   const requirements = requirementsQuery.data ?? [];
+  const selectedComponent = components.find((item) => item.id === selected) ?? null;
 
   const onAddComponent = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -131,84 +132,99 @@ export default function ComponentsTab({ tenderId }: { tenderId: string }): JSX.E
 
   return (
     <div className="space-y-4">
-      <form className="card grid gap-3 p-4 md:grid-cols-[2fr_1fr_1fr_1fr_auto]" onSubmit={onAddComponent}>
-        <input
-          className="input"
-          placeholder="Новая позиция"
-          value={newName}
-          onChange={(event) => setNewName(event.target.value)}
-        />
-        <input
-          className="input"
-          type="number"
-          min="0.001"
-          step="0.001"
-          value={newQuantity}
-          onChange={(event) => setNewQuantity(event.target.value)}
-        />
-        <input
-          className="input"
-          placeholder="Ед."
-          value={newUnit}
-          onChange={(event) => setNewUnit(event.target.value)}
-        />
-        <input
-          className="input"
-          placeholder="Категория"
-          value={newCategory}
-          onChange={(event) => setNewCategory(event.target.value)}
-        />
-        <button className="btn-primary" type="submit" disabled={createComponentMutation.isPending}>
-          Добавить
-        </button>
+      <form className="panel" onSubmit={onAddComponent}>
+        <div className="panel-body grid gap-2 md:grid-cols-[1.6fr_0.6fr_0.5fr_1fr_auto]">
+          <input
+            className="input"
+            placeholder="Новая позиция"
+            value={newName}
+            onChange={(event) => setNewName(event.target.value)}
+          />
+          <input
+            className="input num"
+            type="number"
+            min="0.001"
+            step="0.001"
+            value={newQuantity}
+            onChange={(event) => setNewQuantity(event.target.value)}
+          />
+          <input
+            className="input"
+            placeholder="Ед."
+            value={newUnit}
+            onChange={(event) => setNewUnit(event.target.value)}
+          />
+          <input
+            className="input"
+            placeholder="Категория"
+            value={newCategory}
+            onChange={(event) => setNewCategory(event.target.value)}
+          />
+          <button className="btn-secondary" type="submit" disabled={createComponentMutation.isPending}>
+            Добавить
+          </button>
+        </div>
       </form>
 
-      {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="banner-error">{error}</p> : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="card">
-          <h3 className="border-b border-slate-200 p-4 text-sm font-semibold">Позиции</h3>
-          {components.length === 0 ? (
-            <p className="p-4 text-sm text-slate-500">
+        <div className="panel">
+          <div className="panel-head">
+            <span className="section-title">Позиции</span>
+            <span className="text-[12px] tabular-nums text-zinc-400">{components.length}</span>
+          </div>
+          {componentsQuery.isPending ? (
+            <p className="empty">Загрузка…</p>
+          ) : components.length === 0 ? (
+            <p className="empty">
               Позиции появятся после разбора документов — или добавьте их вручную.
             </p>
           ) : (
-            <table className="table">
+            <table className="table table-tight">
               <thead>
                 <tr>
-                  <th>№</th>
+                  <th className="w-10 text-right">№</th>
                   <th>Название</th>
-                  <th>Кол-во</th>
-                  <th>Требований</th>
-                  <th>Статус</th>
-                  <th />
+                  <th className="w-24 text-right">Кол-во</th>
+                  <th className="w-16 text-right">Треб.</th>
+                  <th className="w-32">Статус</th>
+                  <th className="w-16" />
                 </tr>
               </thead>
               <tbody>
                 {components.map((component) => (
                   <tr
                     key={component.id}
-                    className={selected === component.id ? "bg-brand-50/50" : undefined}
+                    className={selected === component.id ? "bg-zinc-50" : undefined}
                   >
-                    <td>{component.position_no}</td>
+                    <td className="num text-right text-zinc-400">{component.position_no}</td>
                     <td>
                       <button
                         type="button"
-                        className="text-left font-medium text-brand-700"
+                        className={`text-left text-[13px] ${
+                          selected === component.id
+                            ? "font-medium text-zinc-900"
+                            : "text-zinc-700 hover:text-zinc-900"
+                        }`}
                         onClick={() => setSelected(component.id)}
                       >
                         {component.name}
                       </button>
                       {component.error_message ? (
-                        <p className="mt-0.5 text-xs text-red-600">{component.error_message}</p>
+                        <p className="mt-0.5 text-[12px] text-red-700">{component.error_message}</p>
                       ) : null}
                     </td>
-                    <td>
+                    <td className="num whitespace-nowrap text-right">
                       {component.quantity} {component.unit}
                     </td>
-                    <td>
+                    <td className="num text-right">
                       {component.requirements_count}
-                      {component.mandatory_count > 0 ? ` (обяз.: ${component.mandatory_count})` : ""}
+                      {component.mandatory_count > 0 ? (
+                        <span className="ml-1 text-[11px] text-zinc-400">
+                          /{component.mandatory_count}
+                        </span>
+                      ) : null}
                     </td>
                     <td>
                       <StatusBadge status={component.status} />
@@ -216,7 +232,7 @@ export default function ComponentsTab({ tenderId }: { tenderId: string }): JSX.E
                     <td className="text-right">
                       <button
                         type="button"
-                        className="btn-danger"
+                        className="btn-danger btn-sm"
                         onClick={() => deleteComponentMutation.mutate(component.id)}
                       >
                         Удалить
@@ -229,27 +245,33 @@ export default function ComponentsTab({ tenderId }: { tenderId: string }): JSX.E
           )}
         </div>
 
-        <div className="card">
-          <h3 className="border-b border-slate-200 p-4 text-sm font-semibold">
-            {selected ? "Требования позиции" : "Выберите позицию"}
-          </h3>
+        <div className="panel">
+          <div className="panel-head">
+            <span className="section-title">
+              {selectedComponent ? selectedComponent.name : "Требования позиции"}
+            </span>
+            {selectedComponent ? (
+              <span className="text-[12px] tabular-nums text-zinc-400">{requirements.length}</span>
+            ) : null}
+          </div>
+
           {!selected ? (
-            <p className="p-4 text-sm text-slate-500">
-              Нажмите на название позиции, чтобы увидеть и дополнить требования.
-            </p>
+            <p className="empty">Выберите позицию слева, чтобы увидеть и дополнить требования.</p>
           ) : (
             <>
               <div className="max-h-72 overflow-y-auto">
-                {requirements.length === 0 ? (
-                  <p className="p-4 text-sm text-slate-500">Требований нет.</p>
+                {requirementsQuery.isPending ? (
+                  <p className="empty">Загрузка…</p>
+                ) : requirements.length === 0 ? (
+                  <p className="empty">Требований нет.</p>
                 ) : (
-                  <table className="table">
+                  <table className="table table-tight">
                     <thead>
                       <tr>
                         <th>Требование</th>
-                        <th>Значение</th>
-                        <th>Тип</th>
-                        <th />
+                        <th className="w-32">Значение</th>
+                        <th className="w-24">Тип</th>
+                        <th className="w-16" />
                       </tr>
                     </thead>
                     <tbody>
@@ -258,17 +280,19 @@ export default function ComponentsTab({ tenderId }: { tenderId: string }): JSX.E
                           <td>
                             {item.name}
                             {item.mandatory ? (
-                              <span className="ml-1 text-xs text-red-600">*</span>
+                              <span className="ml-1 text-[12px] text-red-600" title="Обязательное">
+                                *
+                              </span>
                             ) : null}
                           </td>
-                          <td>
+                          <td className="whitespace-nowrap">
                             {item.value_text || item.value_num || "—"} {item.unit}
                           </td>
-                          <td className="text-xs text-slate-500">{item.data_type}</td>
+                          <td className="mono text-zinc-500">{item.data_type}</td>
                           <td className="text-right">
                             <button
                               type="button"
-                              className="text-xs text-red-600"
+                              className="btn-ghost btn-sm text-red-700 hover:bg-red-50"
                               onClick={() => deleteRequirementMutation.mutate(item.id)}
                             >
                               Удалить
@@ -281,10 +305,10 @@ export default function ComponentsTab({ tenderId }: { tenderId: string }): JSX.E
                 )}
               </div>
 
-              <form className="grid gap-2 border-t border-slate-200 p-4" onSubmit={onAddRequirement}>
+              <form className="grid gap-2 border-t border-zinc-200 px-4 py-3" onSubmit={onAddRequirement}>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <input
-                    className="input"
+                    className="input input-sm"
                     placeholder="Название"
                     value={requirement.name}
                     onChange={(event) =>
@@ -292,7 +316,7 @@ export default function ComponentsTab({ tenderId }: { tenderId: string }): JSX.E
                     }
                   />
                   <input
-                    className="input"
+                    className="input input-sm"
                     placeholder="Значение"
                     value={requirement.value_text}
                     onChange={(event) =>
@@ -300,9 +324,9 @@ export default function ComponentsTab({ tenderId }: { tenderId: string }): JSX.E
                     }
                   />
                 </div>
-                <div className="grid gap-2 sm:grid-cols-3">
+                <div className="grid items-center gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
                   <input
-                    className="input"
+                    className="input input-sm"
                     placeholder="Ед. изм."
                     value={requirement.unit}
                     onChange={(event) =>
@@ -310,7 +334,7 @@ export default function ComponentsTab({ tenderId }: { tenderId: string }): JSX.E
                     }
                   />
                   <select
-                    className="input"
+                    className="select input-sm"
                     value={requirement.data_type}
                     onChange={(event) =>
                       setRequirement({ ...requirement, data_type: event.target.value })
@@ -322,9 +346,10 @@ export default function ComponentsTab({ tenderId }: { tenderId: string }): JSX.E
                       </option>
                     ))}
                   </select>
-                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <label className="flex items-center gap-1.5 whitespace-nowrap text-[12px] text-zinc-600">
                     <input
                       type="checkbox"
+                      className="checkbox"
                       checked={requirement.mandatory}
                       onChange={(event) =>
                         setRequirement({ ...requirement, mandatory: event.target.checked })
@@ -332,14 +357,14 @@ export default function ComponentsTab({ tenderId }: { tenderId: string }): JSX.E
                     />
                     Обязательное
                   </label>
+                  <button
+                    className="btn-secondary btn-sm"
+                    type="submit"
+                    disabled={createRequirementMutation.isPending}
+                  >
+                    Добавить
+                  </button>
                 </div>
-                <button
-                  className="btn-secondary"
-                  type="submit"
-                  disabled={createRequirementMutation.isPending}
-                >
-                  Добавить требование
-                </button>
               </form>
             </>
           )}

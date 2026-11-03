@@ -2,7 +2,8 @@
 
 **Automated sourcing platform for tender documentation.**
 
-Upload tender documents → the platform extracts positions and technical
+Upload tender documents — or describe the purchase in plain language and let the
+AI intake turn it into positions — the platform extracts positions and technical
 requirements → searches the web through the Keenable API → fetches candidate
 product pages → extracts product specifications → performs *programmatic*
 technical matching → ranks eligible offers → produces an Excel/PDF/DOCX

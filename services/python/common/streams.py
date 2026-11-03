@@ -19,6 +19,7 @@ LOGGER = logging.getLogger(__name__)
 JOBS_DOCUMENTS = "jobs:documents"
 JOBS_AI_REQUIREMENTS = "jobs:ai.requirements"
 JOBS_AI_PRODUCTS = "jobs:ai.products"
+JOBS_AI_INTAKE = "jobs:ai.intake"
 JOBS_REPORTS = "jobs:reports"
 
 # ---- event streams ----

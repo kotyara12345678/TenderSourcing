@@ -2,7 +2,7 @@
 name = "tender-common"
 version.workspace = true
 edition.workspace = true
-description = "Shared foundation: config validation, errors, telemetry, common protobuf types"
+description = "Shared foundation: config validation, errors, telemetry, streams, common protobuf types"
 
 [dependencies]
 tonic.workspace = true
@@ -15,6 +15,8 @@ thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 dotenvy.workspace = true
+uuid.workspace = true
+chrono.workspace = true
 
 [build-dependencies]
 tonic-prost-build.workspace = true

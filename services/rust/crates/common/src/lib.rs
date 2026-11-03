@@ -4,11 +4,15 @@
 //!   every Rust service (variables documented in `.env.example`).
 //! * [`error`] — unified error type with HTTP (axum) and gRPC (tonic) mappings.
 //! * [`telemetry`] — tracing initialization.
+//! * [`streams`] — Redis Streams job/event topology and helpers.
+//! * [`progress`] — `ProgressEvent` construction and publication.
 //! * [`tender::common::v1`] — generated protobuf types (job envelope,
 //!   progress events, health) shared across services.
 
 pub mod config;
 pub mod error;
+pub mod progress;
+pub mod streams;
 pub mod telemetry;
 
 /// Generated types from `proto/common/v1/common.proto`, exposed at the

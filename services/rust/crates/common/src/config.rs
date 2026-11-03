@@ -102,6 +102,11 @@ pub struct Config {
     pub log_level: String,
     pub otel_exporter_otlp_endpoint: Option<String>,
     pub sentry_dsn: Option<String>,
+
+    // ---------- service mesh (internal gRPC + worker health) ----------
+    pub matching_grpc_url: String,
+    pub search_grpc_url: String,
+    pub health_port: u16,
 }
 
 // ---------------------------------------------------------------------------
@@ -404,6 +409,13 @@ impl Config {
         let otel_exporter_otlp_endpoint = raw("OTEL_EXPORTER_OTLP_ENDPOINT");
         let sentry_dsn = raw("SENTRY_DSN");
 
+        // ---------------- service mesh ----------------
+        let matching_grpc_url = with_default("MATCHING_GRPC_URL", "http://matching:50051");
+        http_url("MATCHING_GRPC_URL", &matching_grpc_url, &mut errors);
+        let search_grpc_url = with_default("SEARCH_GRPC_URL", "http://search:50052");
+        http_url("SEARCH_GRPC_URL", &search_grpc_url, &mut errors);
+        let health_port = parse::<u16>("HTTP_PORT", "8090", &mut errors);
+
         // ---------------- production hardening ----------------
         if app_env == "production" {
             if !auth_cookie_secure {
@@ -484,6 +496,9 @@ impl Config {
             log_level,
             otel_exporter_otlp_endpoint,
             sentry_dsn,
+            matching_grpc_url,
+            search_grpc_url,
+            health_port,
         })
     }
 }

@@ -1,0 +1,23 @@
+[package]
+name = "tender-orchestrator"
+version.workspace = true
+edition.workspace = true
+description = "Orchestrator: sole writer of the tender FSM, pipeline driver over Redis Streams"
+
+[dependencies]
+tender-common.workspace = true
+tonic.workspace = true
+tonic-prost.workspace = true
+prost.workspace = true
+tokio.workspace = true
+futures.workspace = true
+axum.workspace = true
+sqlx.workspace = true
+redis.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+
+[build-dependencies]
+tonic-prost-build.workspace = true

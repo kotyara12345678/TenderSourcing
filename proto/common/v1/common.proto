@@ -26,6 +26,15 @@ message ErrorDetail {
   map<string, string> context = 3;
 }
 
+// Normalized page-relative rectangle (0..1) describing where a text block
+// sits on a document page; used by `document.proto` text blocks.
+message BoundingBox {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+}
+
 message PageRequest {
   int32 page = 1;                  // 1-based
   int32 page_size = 2;

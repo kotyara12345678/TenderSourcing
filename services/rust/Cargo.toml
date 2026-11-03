@@ -2,6 +2,10 @@
 resolver = "2"
 members = [
     "crates/common",
+    "crates/api",
+    "crates/orchestrator",
+    "crates/search",
+    "crates/matching",
 ]
 
 [workspace.package]
@@ -24,7 +28,7 @@ futures = "0.3"
 bytes = "1"
 
 # http api (api-gateway)
-axum = { version = "0.8", features = ["ws", "macros"] }
+axum = { version = "0.8", features = ["ws", "macros", "multipart"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace", "limit", "compression-gzip"] }
 
@@ -36,6 +40,7 @@ sqlx = { version = "0.8", default-features = false, features = [
     "chrono",
     "json",
     "migrate",
+    "macros",
 ] }
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
 serde = { version = "1", features = ["derive"] }

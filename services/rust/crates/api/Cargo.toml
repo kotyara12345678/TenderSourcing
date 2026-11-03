@@ -1,0 +1,31 @@
+[package]
+name = "tender-api"
+version.workspace = true
+edition.workspace = true
+description = "API Gateway: auth, tenders, documents, requirements, results, reports, WebSocket progress"
+
+[dependencies]
+tender-common.workspace = true
+tonic.workspace = true
+tonic-prost.workspace = true
+tokio.workspace = true
+axum.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+futures.workspace = true
+bytes.workspace = true
+prost.workspace = true
+sqlx.workspace = true
+redis.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+argon2.workspace = true
+sha2.workspace = true
+hmac.workspace = true
+hex.workspace = true
+tracing.workspace = true
+
+[build-dependencies]
+tonic-prost-build.workspace = true
